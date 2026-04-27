@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>24시간 루틴 빌더</title>
+  <style>
+    body {font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin:0; padding:20px; background:#f3f6fb; color:#222;}
+    .routine-wrap {max-width: 980px; margin: 0 auto;}
+    .card {background:#fff; border:1px solid #e4e4e4; border-radius:12px; padding:16px; margin-bottom:18px; box-shadow:0 2px 8px rgba(0,0,0,.04);}
+    .card h3 {margin-top:0;}
+    .grid {display:grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap:10px;}
+    label {font-size:14px; color:#444; display:block; margin-bottom:4px;}
+    input, select, button {width:100%; padding:9px; border:1px solid #ccc; border-radius:8px; font-size:14px;}
+    button {background:#2f72ff; color:#fff; border:none; cursor:pointer;}
+    button.secondary {background:#f2f5ff; color:#2f72ff; border:1px solid #cdd9ff;}
+    .muted {color:#666; font-size:13px;}
+    .inline {display:flex; gap:8px;}
+    .inline button {width:auto; padding:8px 12px;}
+    .log {max-height:180px; overflow:auto; border:1px solid #ececec; border-radius:8px; padding:8px; background:#fafafa;}
+    .log-item {display:flex; justify-content:space-between; padding:6px; border-bottom:1px solid #eee; font-size:14px;}
+    .timeline {position:relative; height:80px; border-radius:10px; background:linear-gradient(90deg,#f8fafc 0%,#e8f2ff 100%); border:1px solid #d9e4f8; overflow:hidden;}
+    .segment {position:absolute; top:16px; height:48px; border-radius:8px; color:#fff; font-size:12px; display:flex; align-items:center; justify-content:center; padding:0 6px; white-space:nowrap;}
+    .tick {position:absolute; top:0; height:100%; width:1px; background:rgba(0,0,0,.1);} 
+    .locked {opacity:.5; pointer-events:none;}
+    #meditationCanvas {width:100%; height:220px; border-radius:10px; border:1px solid #ddd; display:block;}
+    .small {font-size:12px; color:#666;}
+  </style>
+</head>
+<body>
+<div class="routine-wrap">
+  <div class="card">
+    <h2>24시간 루틴 빌더</h2>
+    <p class="muted">수면 → 목표 → 명상 → 시간토막 기록을 한 화면에서 관리하는 MVP</p>
+  </div>
+  <div class="card">
+    <h3>1) 수면 문제 해결 (핵심 시작점)</h3>
+    <p class="muted">목표 기상 시간: <strong>08:00</strong>. 현재 기상 시간이 11:00이라면, 30분씩 당겨가며 기록합니다.</p>
+    <div class="grid">
+      <div><label for="wakeDate">날짜</label><input id="wakeDate" type="date" /></div>
+      <div><label for="wakeTime">실제 기상 시간</label><input id="wakeTime" type="time" value="11:00" /></div>
+      <div><label for="targetWake">최종 목표 기상</label><input id="targetWake" type="time" value="08:00" /></div>
+      <div><label for="stepMinute">당길 간격(분)</label><select id="stepMinute"><option value="30" selected>30분</option><option value="15">15분</option><option value="60">60분</option></select></div>
+    </div>
+    <div class="inline" style="margin-top:10px;"><button id="saveSleep">수면 기록 저장</button><button class="secondary" id="autoSuggest">다음 목표 시간 제안</button></div>
+    <p id="sleepProgress" class="small" style="margin-top:10px;"></p>
+    <div id="sleepLogs" class="log"></div>
+  </div>
+
+  <div class="card" id="goalCard">
+    <h3>2) 하고 싶은 일 목표</h3>
+    <p class="muted">수면 루틴이 안정되면 시작. 예: 주 3회 러닝, 독서, 그림 그리기.</p>
+    <div class="grid">
+      <div><label for="goalName">목표 이름</label><input id="goalName" placeholder="예: 러닝" /></div>
+      <div><label for="goalFreq">빈도</label><input id="goalFreq" placeholder="예: 주 3회" /></div>
+      <div><label for="goalCondition">시작 조건</label><select id="goalCondition"><option value="afterSleep" selected>수면 목표 달성 후</option><option value="now">바로 시작</option></select></div>
+      <div style="display:flex;align-items:flex-end;"><button id="addGoal">목표 추가</button></div>
+    </div>
+    <div id="goalList" class="log" style="margin-top:12px;"></div>
+  </div>
+
+  <div class="card">
+    <h3>3) 초간단 명상 (정리용)</h3>
+    <p class="muted">일어나서 기록할 때 / 자기 전 정리할 때 사용.</p>
+    <canvas id="meditationCanvas"></canvas>
+    <div class="grid" style="margin-top:10px;">
+      <div><label for="colorA">배경 색상 A</label><input id="colorA" type="color" value="#4f46e5" /></div>
+      <div><label for="colorB">배경 색상 B</label><input id="colorB" type="color" value="#14b8a6" /></div>
+      <div><label for="ytLink">YouTube 음악 링크</label><input id="ytLink" placeholder="https://www.youtube.com/embed/..." /></div>
+      <div style="display:flex;align-items:flex-end;"><button id="applyMeditation">명상 설정 적용</button></div>
+    </div>
+    <div id="ytWrap" style="margin-top:10px;"></div>
+  </div>
+
+  <div class="card">
+    <h3>24시간 막대(시간 토막 채우기)</h3>
+    <div class="grid">
+      <div><label>토막 이름</label><input id="segName" placeholder="예: 러닝" /></div>
+      <div><label>시작</label><input id="segStart" type="time" value="07:00" /></div>
+      <div><label>종료</label><input id="segEnd" type="time" value="08:00" /></div>
+      <div style="display:flex;align-items:flex-end;"><button id="addSegment">토막 추가</button></div>
+    </div>
+    <div class="timeline" id="timeline" style="margin-top:12px;"></div>
+    <div id="segmentList" class="log" style="margin-top:10px;"></div>
+  </div>
+</div>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const key = 'routinePlannerV1';
+  const state = JSON.parse(localStorage.getItem(key) || '{"sleep":[],"goals":[],"segments":[],"meditation":{}}');
+  $('wakeDate').valueAsDate = new Date();
+  const toMin = (hhmm) => { const [h,m] = (hhmm||'00:00').split(':').map(Number); return h*60+m; };
+  const toHHMM = (m) => `${String(Math.floor((m+1440)%1440/60)).padStart(2,'0')}:${String((m+1440)%60).padStart(2,'0')}`;
+  const save = () => localStorage.setItem(key, JSON.stringify(state));
+  function renderSleep(){ const box=$('sleepLogs'); box.innerHTML=''; const logs=[...state.sleep].sort((a,b)=>a.date.localeCompare(b.date)); logs.forEach(l=>{const r=document.createElement('div'); r.className='log-item'; r.innerHTML=`<span>${l.date} · ${l.actual}</span><span>목표:${l.target}</span>`; box.appendChild(r);}); if(!logs.length){$('sleepProgress').textContent='아직 기록 없음'; return;} const latest=logs[logs.length-1]; const gap=toMin(latest.actual)-toMin(latest.target); $('sleepProgress').textContent=gap<=0?`🎉 목표 기상 달성! (${latest.actual})`:`현재 목표보다 ${gap}분 늦음. 계속 ${$('stepMinute').value}분씩 당겨보자.`; const stable=logs.slice(-5).filter(x=>toMin(x.actual)<=toMin(x.target)).length>=3; $('goalCard').classList.toggle('locked',!stable);} 
+  function renderGoals(){const box=$('goalList'); box.innerHTML=''; state.goals.forEach((g,i)=>{const r=document.createElement('div'); r.className='log-item'; r.innerHTML=`<span>${g.name} (${g.freq})</span><span>${g.condition==='afterSleep'?'수면 후':'즉시'} · #${i+1}</span>`; box.appendChild(r);});}
+  function renderSegments(){const t=$('timeline'); const l=$('segmentList'); t.innerHTML=''; l.innerHTML=''; for(let h=0; h<=24; h+=3){const k=document.createElement('div'); k.className='tick'; k.style.left=`${(h/24)*100}%`; t.appendChild(k);} state.segments.forEach(s=>{const start=toMin(s.start),end=toMin(s.end); const seg=document.createElement('div'); seg.className='segment'; seg.style.left=`${(start/1440)*100}%`; seg.style.width=`${Math.max(1.2,((end-start)/1440)*100)}%`; seg.style.background=s.color; seg.textContent=s.name; t.appendChild(seg); const r=document.createElement('div'); r.className='log-item'; r.innerHTML=`<span>${s.name}</span><span>${s.start}~${s.end}</span>`; l.appendChild(r);});}
+  function startMeditation(){const c=$('meditationCanvas'),x=c.getContext('2d'); const resize=()=>{const r=c.getBoundingClientRect(); c.width=r.width*devicePixelRatio; c.height=r.height*devicePixelRatio; x.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);}; resize(); window.addEventListener('resize',resize); let tt=0; (function f(){const c1=$('colorA').value,c2=$('colorB').value,w=c.clientWidth,h=c.clientHeight; const g=x.createLinearGradient(0,0,w,h); g.addColorStop((Math.sin(tt)+1)/2,c1); g.addColorStop((Math.cos(tt)+1)/2,c2); x.fillStyle=g; x.fillRect(0,0,w,h); x.fillStyle='rgba(255,255,255,.35)'; for(let i=0;i<24;i++){const xx=(Math.sin(tt+i)*0.5+0.5)*w,yy=(Math.cos(tt*1.3+i)*0.5+0.5)*h; x.beginPath(); x.arc(xx,yy,2+((i+tt)%4),0,Math.PI*2); x.fill();} tt+=0.01; requestAnimationFrame(f);} )();}
+  $('saveSleep').onclick=()=>{state.sleep.push({date:$('wakeDate').value,actual:$('wakeTime').value,target:$('targetWake').value}); save(); renderSleep();};
+  $('autoSuggest').onclick=()=>{const step=Number($('stepMinute').value),now=toMin($('wakeTime').value),target=toMin($('targetWake').value); $('wakeTime').value=toHHMM(now>target?now-step:target);};
+  $('addGoal').onclick=()=>{if(!$('goalName').value||!$('goalFreq').value) return; state.goals.push({name:$('goalName').value,freq:$('goalFreq').value,condition:$('goalCondition').value}); $('goalName').value=''; $('goalFreq').value=''; save(); renderGoals();};
+  $('addSegment').onclick=()=>{const name=$('segName').value.trim(); if(!name) return; state.segments.push({name,start:$('segStart').value,end:$('segEnd').value,color:`hsl(${Math.floor(Math.random()*360)} 70% 55%)`}); $('segName').value=''; save(); renderSegments();};
+  $('applyMeditation').onclick=()=>{const link=$('ytLink').value.trim(); state.meditation={a:$('colorA').value,b:$('colorB').value,link}; save(); $('ytWrap').innerHTML=link?`<iframe width="100%" height="220" src="${link}" title="Meditation Music" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`:'';};
+  if(state.meditation?.a) $('colorA').value=state.meditation.a; if(state.meditation?.b) $('colorB').value=state.meditation.b; if(state.meditation?.link){$('ytLink').value=state.meditation.link; $('ytWrap').innerHTML=`<iframe width="100%" height="220" src="${state.meditation.link}" title="Meditation Music" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;}
+  renderSleep(); renderGoals(); renderSegments(); startMeditation();
+})();
+</script>
+</body>
+</html>
